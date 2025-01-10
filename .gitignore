@@ -1,0 +1,11 @@
+/__pychache__
+/bin
+/lib
+/pyvenv.cfg
+/a
+/share
+/include
+/src
+/__pycache__
+/data/h5s
+.DS_Store
