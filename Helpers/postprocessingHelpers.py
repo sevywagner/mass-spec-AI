@@ -3,7 +3,7 @@ from Helpers.preprocessingHelpers import encodeCompounds, unsimplifyCompound, de
 from Helpers.chemHelpers import calculateMass, checkCriteria
 from Helpers.metricsHelpers import calculatePPM
 
-def sortPreds(ec, compounds, preds):
+def sortPreds(ec, compounds, preds, encodings, ppms):
     '''
         Functions:
             Sort encoded and decoded compounds by preds
@@ -12,6 +12,7 @@ def sortPreds(ec, compounds, preds):
             ec (list(list(float))): encoded compounds
             compounds (list(str)): decoded simplified compounds
             preds (list(float)): predicted labels
+            encodings (list(list(int))): criterea encodings
 
         Returns:
             ec, compounds, result (list(list(float)), list(str), dict(string, float)): 
@@ -19,19 +20,17 @@ def sortPreds(ec, compounds, preds):
                 decoded unsimplified compounds,
                 map of all unsimplified decoded compounds to their predictied label
     '''
-    ec = np.array(ec)
-    compounds = np.array(compounds)
-    preds = np.array(preds)
-
     mask = np.argsort(preds)
     preds = preds[mask]
     compounds = compounds[mask]
+    encodings = np.flip(encodings[mask], axis=0)
+    ppms = np.flip(ppms[mask], axis=0)
     ec = np.flip(ec[mask], axis=0)
     
     result = [ (c, p) for (c, p) in zip(list(compounds), list(preds)) ]
     result.reverse()
 
-    return ec, decode_compounds(ec), result
+    return ec, decode_compounds(ec), result, encodings, ppms
 
 def getPreds(model, value, mode='comp'):
     '''
@@ -44,10 +43,11 @@ def getPreds(model, value, mode='comp'):
             mode (str): the features to use for the data sample ('comp', 'crit', 'comb')
 
         Returns:
-            compounds, ec, preds (list(str), list(list(float)), list(float)):
+            compounds, ec, preds, encodings (list(str), np.array(np.array(np.float32)), np.array(np.float32), np.array(np.array(np.int8))):
                 the decoded simplified compounds,
                 the encoded unsimplified compounds,
-                the predicted labels
+                the predicted labels,
+                the criterea encodings
     '''
     ec = getAllPossibleCompounds(value)[0]
     compounds = ec
@@ -61,24 +61,29 @@ def getPreds(model, value, mode='comp'):
 
 
     inp = []
+    crit_enc = []
+    ppms = []
     if mode == 'comp':
         inp = [[*j, calculatePPM(j, value)] for j in ec]
     elif mode == 'crit':
         for j in range(len(ec)):
             _, encoding = checkCriteria(ec[j])
             ppm = calculatePPM(ec[j], value)
+            ppms.append(ppm)
             inp.append([*encoding, ppm])
     elif mode == 'comb':
         for j in range(len(ec)):
             _, encoding = checkCriteria(ec[j])
+            crit_enc.append(encoding)
             ppm = calculatePPM(ec[j], value)
+            ppms.append(ppm)
             inp.append([*encoding, *ec[j], ppm])
 
     preds = np.array(model.predict(np.array(inp)))
     # reshape only for tensorflow models, doesn't affect Object.Model models
     preds = np.reshape(preds, newshape=(len(inp),))
 
-    return compounds, ec, preds
+    return np.array(compounds), np.array(ec), np.array(preds), np.array(crit_enc), np.array(ppms)
 
 def getMostLikelyCompounds(model, peakFile, outputFile, mode='comb'):
     '''
@@ -100,8 +105,8 @@ def getMostLikelyCompounds(model, peakFile, outputFile, mode='comb'):
             predPack = getPreds(model, float(i), mode)
             if (predPack == None):
                 continue
-            compounds, ec, preds = predPack
-            ec, dec, allPreds = sortPreds(ec, compounds, preds)
+            compounds, ec, preds, encodings = predPack
+            ec, dec, allPreds, encodings = sortPreds(ec, compounds, preds, encodings)
 
             with open(f'./data/output/{outputFile}', 'a') as fw:
                 fw.write(str(i))
@@ -126,20 +131,23 @@ def processMassValue(model, value, mode):
             model (Objects.Model || tf.keras.Model): the model to be used to make predictions
             value (float): the mass value(x0) of the peak we are analyzing
             mode (str): the features to use for the data sample ('comp', 'crit', 'comb')
+
+        Returns:
+            compounds, preds, unsimplified_compounds, crit_encodings (list(str), list(str), list(str), list(list(str))):
+                the simplified possible compounds,
+                the confidence scores,
+                the unsimplified compounds,
+                the criterea encodings
     '''
-    compounds, ec, preds = getPreds(model, value, mode)
-    ec, dec, allPreds = sortPreds(ec, compounds, preds)
-    mostLikelyComp = []
-    mostLikelyScore = []
+    compounds, ec, preds, encodings, ppms = getPreds(model, value, mode)
+    ec, dec, allPreds, encodings, ppms = sortPreds(ec, compounds, preds, encodings, ppms)
 
     print(str(value) + ':')
     for j in range(len(dec)):
         if (checkCriteria(ec[j])[0]):
             print(str(dec[j]) + '\t' + str(allPreds[j][1]))
-            mostLikelyComp.append(dec[j])
-            mostLikelyScore.append(str(allPreds[j][1]))
     print('----------------------')
     for j in allPreds:
         print(j[0] + ', ', j[1])
 
-    return [str(i[0]) for i in allPreds], [str(i[1]) for i in allPreds], dec, mostLikelyComp, mostLikelyScore
+    return [str(i[0]) for i in allPreds], [str(i[1] * 100)[:5] for i in allPreds], dec, [[str(j) for j in i] for i in encodings], [str(i * 100)[:6] for i in ppms]

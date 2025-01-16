@@ -279,7 +279,7 @@ def find_peaks(mz_b, mz_av, fileName, plot=False):
             filename (str): name of the file to write the x0 of the peaks in
             plot (bool): whether or not to plot the (mz_base, mz_av) graph
     '''
-    from chemHelpers import gaussianFit, multiPeakGaussianFit
+    from Helpers.chemHelpers import gaussianFit, multiPeakGaussianFit
     
     df = pd.read_csv(mz_b)
     df.insert(1, "mz_av", pd.read_csv(mz_av)["mz_av"])
@@ -372,20 +372,26 @@ def find_peaks(mz_b, mz_av, fileName, plot=False):
         plt.show()
         
 
-def getData(comboFile):
+def getData(comboFile, split=False):
     '''
         Function:
             Get data from labeled "combo" file and seperate train and test sets
         
         Parameters:
             comboFile (str): name of the combo file
+            split (boolean): whether or not to split the data into train or test sets
 
         Returns:
-            x_train, x_test, y_train, y_test (list(list(float)), list(list(float)), list(int), list(int)):
-                training data samples,
-                test data samples,
-                train labels,
-                test labels
+            if split
+                x_train, x_test, y_train, y_test (list(list(float)), list(list(float)), list(int), list(int)):
+                    training data samples,
+                    test data samples,
+                    train labels,
+                    test labels
+            else
+                x, y (list(list(float)), list(int)):
+                    data samples,
+                    labels
     '''
 
     X = []
@@ -403,9 +409,10 @@ def getData(comboFile):
             
         f.close()
 
-    x_train, x_test, y_train, y_test = train_test_split(X, y,
-                                                    test_size=.3,
-                                                    random_state=42,
-                                                    shuffle=True)
-
-    return x_train, x_test, y_train, y_test
+    if split:
+        return train_test_split(X, y,
+                                test_size=.3,
+                                random_state=42,
+                                shuffle=True)
+    else:
+        return np.array(X), np.array(y)

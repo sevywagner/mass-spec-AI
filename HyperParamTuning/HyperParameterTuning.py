@@ -5,11 +5,8 @@
 from preprocessingHelpers import getData
 import numpy as np
 
-x_train, x_test, y_train, y_test = getData('../data/peakGraph/labeled/comboFiles/combosCombFeat.txt')
-x_train = np.array(x_train)
-x_test = np.array(x_test)
-y_train = np.array(y_train)
-y_test = np.array(y_test)
+x_train, y_train = getData('combFeatTrainCombos.txt')
+x_test, y_test = getData('combFeatTestCombos.txt')
 
 
 # ----------------------

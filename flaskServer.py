@@ -10,23 +10,22 @@ import base64
 import os
 import io
 
-model = XGBoostRegressor.loadModel('./Models/ExtremeGradientBoosting/combFeat.pkl')
+model = XGBoostRegressor.loadModel('./Models/ExtremeGradientBoosting/combFeat-3subsample-5learners.pkl')
 app = Flask(__name__)
 CORS(app)
 
-@app.route('/', methods=['POST'])
-@headers({ 'access-control-allow-origin': '*' })
+@app.route('/mass-val', methods=['POST'])
 def processMassVal():
-    c, s, uc, cCheckComp, cCheckScore = processMassValue(model=model,
-                                                        value=float(request.json['massVal']),
-                                                        mode='comb')
+    c, s, uc, crit_enc, ppms = processMassValue(model=model,
+                                            value=float(request.json['massVal']),
+                                            mode='comb')
 
     response = jsonify({
         'compounds': c,
         'scores': s,
         'uCompounds': uc,
-        'criCheckComp': cCheckComp,
-        'criCheckScore': cCheckScore
+        'critereaEncodings': crit_enc,
+        'ppms': ppms
     })
 
     response.headers['access-control-allow-origin'] = '*'
