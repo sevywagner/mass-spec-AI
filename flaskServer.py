@@ -15,6 +15,7 @@ app = Flask(__name__)
 CORS(app)
 
 @app.route('/mass-val', methods=['POST'])
+@headers({'ACCESS-CONTROL-ALLOW-ORIGIN', '*'})
 def processMassVal():
     c, s, uc, crit_enc, ppms = processMassValue(model=model,
                                             value=float(request.json['massVal']),
