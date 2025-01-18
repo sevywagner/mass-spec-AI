@@ -28,8 +28,6 @@ def processMassVal():
         'critereaEncodings': crit_enc,
         'ppms': ppms
     })
-
-    response.headers['access-control-allow-origin'] = '*'
     
     return response
 
@@ -59,13 +57,6 @@ def graphUpload():
 
     return Response(data, mimetype='image/png')
 
-@app.route('/fit', methods=['GET'])
-def fit():
-    av_path = os.path.join(os.path.dirname('./'), 'data', 'peakGraph', 'graphs', '3', 'mz_av')
-    base_path = os.path.join(os.path.dirname('./'), 'data', 'peakGraph', 'graphs', '3', 'mz_base')
-    find_peaks(base_path, av_path, 'fitPeaks')
-    return jsonify({ 'message': 'Success...' })
-
 @app.route('/predict', methods=['GET'])
 def fitPredict():
     av_path = os.path.join(os.path.dirname('./'), 'data', 'peakGraph', 'graphs', '3', 'mz_av')
@@ -73,6 +64,24 @@ def fitPredict():
     find_peaks(base_path, av_path, 'fitPeaks')
     getMostLikelyCompounds(model, 'fitPeaks.txt', 'predictions.txt')
     return send_file(os.path.join(os.path.dirname('./'), 'data', 'output', 'predictions.txt'))
+
+
+@app.route('/download-table', methods=['POST'])
+@headers({ 'access-control-allow-origin': '*' })
+def downloadTable():
+    compounds = request.json['compounds']
+    preds = request.json['preds']
+    ppms = request.json['ppms']
+
+    path = os.path.join(os.path.dirname('./'), 'data', 'output', 'UserFiles', 'table.txt')
+
+    with open(path, 'w') as f:
+        f.write("Compound\tPrediction\tPPM\n")
+        for i in range(len(compounds)):
+            f.write(str(compounds[i]) + '\t' + str(preds[i]) + '\t' + str(ppms[i]) + '\n')
+        f.close()
+
+    return send_file(path)
 
 if __name__ == '__main__':
     app.run(debug=True, port=8080)
