@@ -1,11 +1,12 @@
-from flask import Flask, jsonify, request, Response, send_file
-from flask_headers import headers
-from flask_cors import CORS
-from Helpers.preprocessingHelpers import find_peaks
 from Helpers.postprocessingHelpers import processMassValue, getMostLikelyCompounds
 from Objects.ExtremeGradientBoosting.XGBoostRegressor import XGBoostRegressor
+from flask import Flask, jsonify, request, Response, send_file
+from Helpers.preprocessingHelpers import find_peaks
 from matplotlib.figure import Figure
+from flask_headers import headers
+from flask_cors import CORS
 import pandas as pd
+import datetime
 import base64
 import os
 import io
@@ -18,8 +19,8 @@ CORS(app)
 @headers({ 'access-control-allow-origin': '*' })
 def processMassVal():
     c, s, uc, crit_enc, ppms = processMassValue(model=model,
-                                            value=float(request.json['massVal']),
-                                            mode='comb')
+                                                value=float(request.json['massVal']),
+                                                mode='comb')
 
     response = jsonify({
         'compounds': c,
@@ -36,7 +37,7 @@ def graphUpload():
     av = request.files['av']
     base = request.files['base']
 
-    av_path = os.path.join(os.path.dirname('./'), 'data', 'peakGraph', 'graphs', '3', 'mz_av')
+    av_path = os.path.join(os.path.dirname('./'), 'data', 'peakGraph', 'graphs', '', 'mz_av')
     base_path = os.path.join(os.path.dirname('./'), 'data', 'peakGraph', 'graphs', '3', 'mz_base')
 
     av.save(av_path)
@@ -58,12 +59,24 @@ def graphUpload():
     return Response(data, mimetype='image/png')
 
 @app.route('/predict', methods=['GET'])
+@headers({ 'access-control-allow-origin': '*' })
 def fitPredict():
-    av_path = os.path.join(os.path.dirname('./'), 'data', 'peakGraph', 'graphs', '3', 'mz_av')
-    base_path = os.path.join(os.path.dirname('./'), 'data', 'peakGraph', 'graphs', '3', 'mz_base')
-    find_peaks(base_path, av_path, 'fitPeaks')
-    getMostLikelyCompounds(model, 'fitPeaks.txt', 'predictions.txt')
-    return send_file(os.path.join(os.path.dirname('./'), 'data', 'output', 'predictions.txt'))
+    time = datetime.datetime.now()
+    av_path = os.path.join(os.path.join(os.path.dirname('./'), 'data', 'UserFiles', 'graphs' f'mz_av-{time}.csv'))
+    base_path = os.path.join(os.path.join(os.path.dirname('./'), 'data', 'UserFiles', 'graphs' f'mz_base-{time}.csv'))
+    peaks_path = os.path.join(os.path.join(os.path.dirname('./'), 'data', 'UserFiles', 'peaks' f'peaks-{time}.csv'))
+    pred_path = os.path.join(os.path.dirname('./'), 'data', 'UserFiles', 'graphPreds' f'predictions-{time}.txt')
+    find_peaks(base_path, av_path, peaks_path)
+    getMostLikelyCompounds(model, peaks_path, pred_path)
+
+    response = send_file(pred_path)
+
+    os.remove(av_path)
+    os.remove(base_path)
+    os.remove(pred_path)
+    os.remove(peaks_path)
+
+    return response
 
 
 @app.route('/download-table', methods=['POST'])
@@ -73,15 +86,18 @@ def downloadTable():
     preds = request.json['preds']
     ppms = request.json['ppms']
 
-    path = os.path.join(os.path.dirname('./'), 'data', 'output', 'UserFiles', 'table.txt')
+    path = os.path.join(os.path.dirname('./'), 'data', 'UserFiles', 'tables', f'table-{datetime.datetime.now()}')
 
-    with open(path, 'w') as f:
+    with open(path, 'w+') as f:
         f.write("Compound\tPrediction\tPPM\n")
         for i in range(len(compounds)):
             f.write(str(compounds[i]) + '\t' + str(preds[i]) + '\t' + str(ppms[i]) + '\n')
         f.close()
 
-    return send_file(path)
+    response = send_file(path)
+    os.remove(path)
+
+    return response
 
 if __name__ == '__main__':
     app.run(debug=True, port=8080)

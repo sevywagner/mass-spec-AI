@@ -27,7 +27,7 @@ def createXGBClassifier(name):
         Parameters:
             name (str): name of the file to put the model in
     '''
-    gb = XGBoostRegressor(n_learners=5, subsample=.3, learning_rate=.1)
+    gb = XGBoostRegressor(n_learners=200, subsample=.3, learning_rate=.1)
     gb.fit(X=x, y=y)
     gb.saveModel(f"./Models/ExtremeGradientBoosting/{name}.pkl")
     # preds = gb.predict(x)
@@ -56,5 +56,5 @@ def createTFModel(name):
     model.save(f'./Models/Regression/{name}.keras')
 
 # createGBClassifier('combFeat')
-createXGBClassifier('combFeat')
+createXGBClassifier('test')
 # createTFModel('newFeats')

@@ -5,7 +5,7 @@ import numpy as np
 
 x, y = getData('combFeatTestCombos.txt')
 
-model = XGBoostRegressor.loadModel('./Models/ExtremeGradientBoosting/combFeat.pkl')
+model = XGBoostRegressor.loadModel('./Models/ExtremeGradientBoosting/test.pkl')
 # model = XGBoostRegressor.loadModel('./Models/ExtremeGradientBoosting/combFeat-default.pkl')
 # model = XGBoostRegressor.loadModel('./Models/GradientBoosting/combFeat.pkl')
 # model = XGBoostRegressor.loadModel('./Models/GradientBoosting/combFeat-default.pkl')

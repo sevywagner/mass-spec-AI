@@ -98,7 +98,7 @@ def getMostLikelyCompounds(model, peakFile, outputFile, mode='comb'):
             mode (str): the features to use for the data sample ('comp', 'crit', 'comb')
 
     '''
-    with open(f'./data/output/peaks/{peakFile}', 'r') as f:
+    with open(peakFile, 'r') as f:
         lines = f.readlines()
         for i in lines:
             print(float(i))
@@ -108,7 +108,7 @@ def getMostLikelyCompounds(model, peakFile, outputFile, mode='comb'):
             compounds, ec, preds, encodings = predPack
             ec, dec, allPreds, encodings = sortPreds(ec, compounds, preds, encodings)
 
-            with open(f'./data/output/{outputFile}', 'a') as fw:
+            with open(outputFile, 'w+') as fw:
                 fw.write(str(i))
                 for j in range(len(dec)):
                     if (checkCriteria(ec[j])[0]):

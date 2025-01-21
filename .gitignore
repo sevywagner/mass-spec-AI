@@ -10,3 +10,5 @@
 /data/h5s
 .DS_Store
 /HyperParamTuning
+AWSCLIV2.pkg
+.env

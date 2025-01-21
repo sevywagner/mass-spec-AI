@@ -34,7 +34,7 @@ class XGBoostRegressor(BaseEstimator, Model):
         hessians = predictions * (1 - predictions)
         return gradients, hessians
     
-    def fit(self, X, y):
+    def fit(self, X, y, validation_set=None, tolerance=1e-4):
         '''
             Function:
                 Train the XGBoost model using binary crossentropy loss function
@@ -45,7 +45,14 @@ class XGBoostRegressor(BaseEstimator, Model):
         '''
         np.random.seed(42)
         fm = np.full(shape=len(y), fill_value=0.0)
-        for _ in range(self.n_learners):
+        early_stop_ctr = 0
+        loss = 0.
+
+        if (validation_set):
+            val_x, val_y = validation_set
+            fm_val = np.full(shape=len(y), fill_value=0.0)
+
+        for i in range(self.n_learners):
             mask = np.random.randint(0, len(fm), math.floor(self.subsample * len(fm)))
             gradients, hessians = self.get_gradients_hessians(y[mask], fm[mask])
             learner = DecisionTreeBooster(X[mask], gradients, hessians, 
@@ -58,6 +65,26 @@ class XGBoostRegressor(BaseEstimator, Model):
             
             fm += (self.learning_rate * learner.predict(X))
             self.trees.append(learner)
+            
+            if (validation_set):
+                fm_val += (self.learning_rate * learner.predict(val_x))
+                temp_loss = binaryCrossentropy(val_y, fm_val)
+            else:
+                temp_loss = binaryCrossentropy(y, fm)
+
+            if (abs(loss - temp_loss) / max(abs(loss), 1e-7) < tolerance):
+                early_stop_ctr += 1
+            else:
+                early_stop_ctr = 0
+
+            if (early_stop_ctr == 3):
+                print(f'Early stop invoked at ${i + 1} learners')
+                break
+
+            loss = temp_loss
+            if ((i + 1) % 5 == 0):
+                print(f'Learner #{i + 1} loss: {loss}')
+
 
     def predict(self, X):
         '''

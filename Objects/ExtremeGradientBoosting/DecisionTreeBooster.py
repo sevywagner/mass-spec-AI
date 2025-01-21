@@ -1,6 +1,6 @@
 import numpy as np
 from Helpers.metricsHelpers import binaryCrossentropy
-# from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 
 class DecisionTreeBooster:
     def __init__(self, X, gradients, hessians, learning_rate=.1, n_learners=200, subsample=.25, max_depth=5, min_samples=3, gamma=0.0, reg_lambda=1.0):
@@ -79,7 +79,7 @@ class DecisionTreeBooster:
                 hessians (np.array(np.float32)): second order derivative of the loss function
         '''
         grad_sum, hess_sum = np.sum(gradients), np.sum(hessians)
-
+        
         for i in range(X.shape[1]):
             grad_left, hess_left = 0., 0.
 
@@ -88,9 +88,16 @@ class DecisionTreeBooster:
             g_sort = gradients[mask]
             h_sort = hessians[mask]
             x_sort = x[mask]
+
+            g_sort_cumsum = np.cumsum(g_sort)
+            h_sort_cumsum = np.cumsum(h_sort)
+            
             for j in range(len(g_sort) - 1):
-                grad_left += g_sort[j]
-                hess_left += h_sort[j]
+                if (x_sort[j] == x_sort[j + 1]):
+                    continue
+
+                grad_left = g_sort_cumsum[j]
+                hess_left = h_sort_cumsum[j]
                 grad_right = grad_sum - grad_left
                 hess_right = hess_sum - hess_left
 

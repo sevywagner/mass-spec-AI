@@ -357,7 +357,7 @@ def find_peaks(mz_b, mz_av, fileName, plot=False):
             i += 1
 
     x0 = sorted(final_x0)
-    with open(f"./data/output/peaks/{fileName}.txt", 'w') as f:
+    with open(fileName, 'w+') as f:
         for i in x0:
             f.write(str(i) + '\n')
         f.close()
@@ -389,7 +389,7 @@ def getData(comboFile, split=False):
                     train labels,
                     test labels
             else
-                x, y (list(list(float)), list(int)):
+                x, y (np.array(np.array(np.float32))), np.array(np.int8)):
                     data samples,
                     labels
     '''
@@ -415,4 +415,4 @@ def getData(comboFile, split=False):
                                 random_state=42,
                                 shuffle=True)
     else:
-        return np.array(X), np.array(y)
+        return np.array(X, dtype=np.float32), np.array(y, dtype=np.int8)
