@@ -6,14 +6,24 @@ from matplotlib.figure import Figure
 from flask_headers import headers
 from flask_cors import CORS
 import pandas as pd
+from apscheduler.schedulers.background import BackgroundScheduler
 import datetime
 import base64
+import time as t
 import os
 import io
 
 model = XGBoostRegressor.loadModel('./Models/ExtremeGradientBoosting/combFeat-3subsample-5learners.pkl')
 app = Flask(__name__)
 CORS(app)
+
+scheduler = BackgroundScheduler()
+scheduler.start()
+
+def deleteFiles(paths):
+    for path in paths:
+        if os.path.exists(path):
+            os.remove(path)
 
 @app.route('/mass-val', methods=['POST'])
 @headers({ 'access-control-allow-origin': '*' })
@@ -37,8 +47,10 @@ def graphUpload():
     av = request.files['av']
     base = request.files['base']
 
-    av_path = os.path.join(os.path.dirname('./'), 'data', 'peakGraph', 'graphs', '', 'mz_av')
-    base_path = os.path.join(os.path.dirname('./'), 'data', 'peakGraph', 'graphs', '3', 'mz_base')
+    time = str(datetime.datetime.now())
+
+    av_path = os.path.join(os.path.dirname('./'), 'data', 'UserFiles', 'graphs', f'mz_av-{time}.csv')
+    base_path = os.path.join(os.path.dirname('./'), 'data', 'UserFiles', 'graphs', f'mz_base-{time}.csv')
 
     av.save(av_path)
     base.save(base_path)
@@ -56,16 +68,28 @@ def graphUpload():
 
     data = base64.b64encode(buf.read()).decode("ascii")
 
-    return Response(data, mimetype='image/png')
+    delete_time = datetime.datetime.now() + datetime.timedelta(minutes=10)
+    scheduler.add_job(deleteFiles, 'date', run_date=delete_time, args=[[av_path, base_path]])
 
-@app.route('/predict', methods=['GET'])
+    return jsonify({
+        'image': data,
+        'time': time
+    })
+
+@app.route('/predict', methods=['POST'])
 @headers({ 'access-control-allow-origin': '*' })
 def fitPredict():
-    time = datetime.datetime.now()
-    av_path = os.path.join(os.path.join(os.path.dirname('./'), 'data', 'UserFiles', 'graphs' f'mz_av-{time}.csv'))
-    base_path = os.path.join(os.path.join(os.path.dirname('./'), 'data', 'UserFiles', 'graphs' f'mz_base-{time}.csv'))
-    peaks_path = os.path.join(os.path.join(os.path.dirname('./'), 'data', 'UserFiles', 'peaks' f'peaks-{time}.csv'))
-    pred_path = os.path.join(os.path.dirname('./'), 'data', 'UserFiles', 'graphPreds' f'predictions-{time}.txt')
+    time = str(request.json['time'])
+    av_path = os.path.join(os.path.join(os.path.dirname('./'), 'data', 'UserFiles', 'graphs', f'mz_av-{time}.csv'))
+    base_path = os.path.join(os.path.join(os.path.dirname('./'), 'data', 'UserFiles', 'graphs', f'mz_base-{time}.csv'))
+    peaks_path = os.path.join(os.path.join(os.path.dirname('./'), 'data', 'UserFiles', 'peaks', f'peaks-{time}.csv'))
+    pred_path = os.path.join(os.path.dirname('./'), 'data', 'UserFiles', 'graphPreds', f'predictions-{time}.txt')
+
+    if not os.path.exists(av_path) or not os.path.exists(base_path):
+        response = jsonify({ 'message': 'Graph files expired. Re-upload and try again.' })
+        response.status_code = 408
+        return response
+
     find_peaks(base_path, av_path, peaks_path)
     getMostLikelyCompounds(model, peaks_path, pred_path)
 

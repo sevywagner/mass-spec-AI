@@ -100,15 +100,15 @@ def getMostLikelyCompounds(model, peakFile, outputFile, mode='comb'):
     '''
     with open(peakFile, 'r') as f:
         lines = f.readlines()
-        for i in lines:
-            print(float(i))
-            predPack = getPreds(model, float(i), mode)
-            if (predPack == None):
-                continue
-            compounds, ec, preds, encodings = predPack
-            ec, dec, allPreds, encodings = sortPreds(ec, compounds, preds, encodings)
+        with open(outputFile, 'w+') as fw:
+            for i in lines:
+                print(float(i))
+                predPack = getPreds(model, float(i), mode)
+                if (predPack == None):
+                    continue
+                compounds, ec, preds, encodings, ppms = predPack
+                ec, dec, allPreds, encodings, ppms = sortPreds(ec, compounds, preds, encodings, ppms)
 
-            with open(outputFile, 'w+') as fw:
                 fw.write(str(i))
                 for j in range(len(dec)):
                     if (checkCriteria(ec[j])[0]):
@@ -118,11 +118,11 @@ def getMostLikelyCompounds(model, peakFile, outputFile, mode='comb'):
                     fw.write(str(j[0]) + ",\t" + str(j[1]) + '\n')
 
                 fw.write('\n')
-                fw.close()
+            fw.close()
 
         f.close()
 
-def processMassValue(model, value, mode):
+def processMassValue(model, value, mode, print=False):
     '''
         Function:
             Predict and display all of the most likely compounds represented by a mass value
@@ -142,12 +142,13 @@ def processMassValue(model, value, mode):
     compounds, ec, preds, encodings, ppms = getPreds(model, value, mode)
     ec, dec, allPreds, encodings, ppms = sortPreds(ec, compounds, preds, encodings, ppms)
 
-    print(str(value) + ':')
-    for j in range(len(dec)):
-        if (checkCriteria(ec[j])[0]):
-            print(str(dec[j]) + '\t' + str(allPreds[j][1]))
-    print('----------------------')
-    for j in allPreds:
-        print(j[0] + ', ', j[1])
+    if (print):
+        print(str(value) + ':')
+        for j in range(len(dec)):
+            if (checkCriteria(ec[j])[0]):
+                print(str(dec[j]) + '\t' + str(allPreds[j][1]))
+        print('----------------------')
+        for j in allPreds:
+            print(j[0] + ', ', j[1])
 
     return [str(i[0]) for i in allPreds], [str(i[1] * 100)[:5] for i in allPreds], dec, [[str(j) for j in i] for i in encodings], [str(i * 100)[:6] for i in ppms]
